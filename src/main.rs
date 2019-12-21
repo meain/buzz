@@ -32,14 +32,14 @@ impl Account {
     pub fn connect(&self) -> Result<Connection<TlsStream<TcpStream>>, imap::error::Error> {
         let tls = TlsConnector::builder().build()?;
         imap::connect((&*self.server.0, self.server.1), &self.server.0, &tls).and_then(|c| {
-            let mut c = try!(c
+            let mut c = c
                 .login(self.username.trim(), self.password.trim())
-                .map_err(|(e, _)| e));
-            let cap = try!(c.capabilities());
+                .map_err(|(e, _)| e)?;
+            let cap = c.capabilities()?;
             if !cap.iter().any(|&c| c == "IDLE") {
                 return Err(imap::error::Error::Bad(cap.iter().cloned().collect()));
             }
-            try!(c.select("INBOX"));
+            c.select("INBOX")?;
             Ok(Connection {
                 account: self.clone(),
                 socket: c,
