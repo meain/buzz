@@ -157,7 +157,7 @@ impl<T: Read + Write + imap::extensions::idle::SetReadTimeout> Connection<T> {
                                 }
                             };
 
-                            let tree_input = subject + " from " + from;
+                            let tree_input = subject + " ;; " + from;
                             subjects.insert(date, tree_input);
                         }
                         Err(e) => println!("failed to parse headers of message: {:?}", e),
@@ -183,6 +183,15 @@ impl<T: Read + Write + imap::extensions::idle::SetReadTimeout> Connection<T> {
 
                 println!("! {}", title);
                 println!("{}", body);
+
+                let mut file = std::fs::File::create("/tmp/unreadmails").expect("create failed");
+                file.write_all(body.to_string().as_bytes())
+                    .expect("write failed");
+                Command::new("/usr/local/bin/tmux")
+                    .arg("refresh-client")
+                    .spawn()
+                    .expect("tmux command failed");
+
                 if let Some(mut n) = notification.take() {
                     n.summary(&title).body(&body);
                 } else {
