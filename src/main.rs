@@ -157,7 +157,7 @@ impl<T: Read + Write + imap::extensions::idle::SetReadTimeout> Connection<T> {
                                 }
                             };
 
-                            let tree_input = subject + " ;; " + from;
+                            let tree_input = subject + " @" + from;
                             subjects.insert(date, tree_input);
                         }
                         Err(e) => println!("failed to parse headers of message: {:?}", e),
@@ -175,7 +175,7 @@ impl<T: Read + Write + imap::extensions::idle::SetReadTimeout> Connection<T> {
                 // we want the n newest e-mail in reverse chronological order
                 let mut body = String::new();
                 for subject in subjects.values().rev() {
-                    body.push_str("- ");
+                    body.push_str("> ");
                     body.push_str(subject);
                     body.push_str("\n");
                 }
