@@ -1,11 +1,9 @@
-extern crate askama_escape;
 extern crate chrono;
 extern crate imap;
 extern crate mailparse;
 extern crate native_tls;
 extern crate notify_rust;
 extern crate rayon;
-extern crate systray;
 extern crate toml;
 extern crate xdg;
 
@@ -133,6 +131,14 @@ impl<T: Read + Write + imap::extensions::idle::SetReadTimeout> Connection<T> {
                                     continue;
                                 }
                             };
+                            let from = match headers.get_first_value("From") {
+                                Ok(Some(from)) => Cow::from(from),
+                                Ok(None) => Cow::from("<no from_addr>"),
+                                Err(e) => {
+                                    println!("failed to get sender: {:?}", e);
+                                    continue;
+                                }
+                            };
 
                             let date = match headers.get_first_value("Date") {
                                 Ok(Some(date)) => {
@@ -151,7 +157,8 @@ impl<T: Read + Write + imap::extensions::idle::SetReadTimeout> Connection<T> {
                                 }
                             };
 
-                            subjects.insert(date, subject);
+                            let tree_input = subject + " from " + from;
+                            subjects.insert(date, tree_input);
                         }
                         Err(e) => println!("failed to parse headers of message: {:?}", e),
                     }
@@ -168,7 +175,7 @@ impl<T: Read + Write + imap::extensions::idle::SetReadTimeout> Connection<T> {
                 // we want the n newest e-mail in reverse chronological order
                 let mut body = String::new();
                 for subject in subjects.values().rev() {
-                    body.push_str("> ");
+                    body.push_str("- ");
                     body.push_str(subject);
                     body.push_str("\n");
                 }
@@ -177,19 +184,12 @@ impl<T: Read + Write + imap::extensions::idle::SetReadTimeout> Connection<T> {
                 println!("! {}", title);
                 println!("{}", body);
                 if let Some(mut n) = notification.take() {
-                    n.summary(&title).body(&format!(
-                        "{}",
-                        askama_escape::escape(body, askama_escape::Html)
-                    ));
-                    n.update();
+                    n.summary(&title).body(&body);
                 } else {
                     notification = Some(
                         Notification::new()
                             .summary(&title)
-                            .body(&format!(
-                                "{}",
-                                askama_escape::escape(body, askama_escape::Html)
-                            ))
+                            .body(&body)
                             .icon("notification-message-email")
                             .hint(NotificationHint::Category("email.arrived".to_owned()))
                             .id(42) // for some reason, just updating isn't enough for dunst
@@ -291,25 +291,6 @@ fn main() {
         return;
     }
 
-    // Create a new application
-    let mut app = match systray::Application::new() {
-        Ok(app) => app,
-        Err(e) => {
-            println!("Could not create gtk application: {}", e);
-            return;
-        }
-    };
-    if let Err(e) =
-        app.set_icon_from_file(&"/usr/share/icons/Faenza/stock/24/stock_disconnect.png".to_string())
-    {
-        println!("Could not set application icon: {}", e);
-    }
-    if let Err(e) = app.add_menu_item(&"Quit".to_string(), |window| {
-        window.quit();
-    }) {
-        println!("Could not add application Quit menu option: {}", e);
-    }
-
     // TODO: w.set_tooltip(&"Whatever".to_string());
     // TODO: app.wait_for_message();
 
@@ -346,8 +327,7 @@ fn main() {
     }
 
     // We have now connected
-    app.set_icon_from_file(&"/usr/share/icons/Faenza/stock/24/stock_connect.png".to_string())
-        .ok();
+    println!("Connected");
 
     let (tx, rx) = mpsc::channel();
     let mut unseen: Vec<_> = accounts.iter().map(|_| 0).collect();
@@ -361,15 +341,9 @@ fn main() {
     for (i, num_unseen) in rx {
         unseen[i] = num_unseen;
         if unseen.iter().sum::<usize>() == 0 {
-            app.set_icon_from_file(
-                &"/usr/share/icons/oxygen/base/32x32/status/mail-unread.png".to_string(),
-            )
-            .unwrap();
+            println!("Unread messages {}", unseen.iter().sum::<usize>());
         } else {
-            app.set_icon_from_file(
-                &"/usr/share/icons/oxygen/base/32x32/status/mail-unread-new.png".to_string(),
-            )
-            .unwrap();
+            println!("New unread messages {}", unseen.iter().sum::<usize>());
         }
     }
 }
