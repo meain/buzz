@@ -2,7 +2,7 @@ extern crate chrono;
 extern crate imap;
 extern crate mailparse;
 extern crate native_tls;
-extern crate notify_rust;
+// extern crate notify_rust;
 extern crate rayon;
 extern crate toml;
 extern crate xdg;
@@ -94,7 +94,7 @@ impl<T: Read + Write + imap::extensions::idle::SetReadTimeout> Connection<T> {
     ) -> Result<(), imap::error::Error> {
         // Keep track of all the e-mails we have already notified about
         let mut last_notified = 0;
-        let mut notification = None::<notify_rust::NotificationHandle>;
+        // let mut notification = None::<notify_rust::NotificationHandle>;
 
         loop {
             // check current state of inbox
@@ -166,7 +166,7 @@ impl<T: Read + Write + imap::extensions::idle::SetReadTimeout> Connection<T> {
             }
 
             if !subjects.is_empty() {
-                use notify_rust::{Notification, NotificationHint};
+                // use notify_rust::{Notification, NotificationHint};
                 let title = format!(
                     "@{} has new mail ({} unseen)",
                     self.account.name, num_unseen
@@ -192,20 +192,20 @@ impl<T: Read + Write + imap::extensions::idle::SetReadTimeout> Connection<T> {
                     .spawn()
                     .expect("tmux command failed");
 
-                if let Some(mut n) = notification.take() {
-                    n.summary(&title).body(&body);
-                } else {
-                    notification = Some(
-                        Notification::new()
-                            .summary(&title)
-                            .body(&body)
-                            .icon("notification-message-email")
-                            .hint(NotificationHint::Category("email.arrived".to_owned()))
-                            .id(42) // for some reason, just updating isn't enough for dunst
-                            .show()
-                            .expect("failed to launch notify-send"),
-                    );
-                }
+                // if let Some(mut n) = notification.take() {
+                //     n.summary(&title).body(&body);
+                // } else {
+                //     notification = Some(
+                //         Notification::new()
+                //             .summary(&title)
+                //             .body(&body)
+                //             .icon("notification-message-email")
+                //             .hint(NotificationHint::Category("email.arrived".to_owned()))
+                //             .id(42) // for some reason, just updating isn't enough for dunst
+                //             .show()
+                //             .expect("failed to launch notify-send"),
+                //     );
+                // }
             }
 
             tx.send((account, num_unseen)).unwrap();
